@@ -22,7 +22,7 @@ if(match){
 	var tarefa = match[1]; //Captura a tarefa que está em ()
 	var data = match[2] // Captura a data que está em ()
 
-	client.sendMessage(message.from, `${tarefa} cadastrada para o dia ${data}`)
+	client.sendMessage(message.from, `${tarefa} cadastrada para  ${data}`)
 }
 
 	if (message.body === '!ping') {
