@@ -179,8 +179,21 @@ client.on('message_create', async (message) => {
 
 	// Fim do Método deletar
 
-
-
+        // Intervalo para verificar tarefas
+        setInterval(async () => {
+            const agora = new Date();
+            agora.setDate(agora.getDate() + 1); // Um dia à frente
+            const dataAlvo = agora.toLocaleDateString("pt-BR");
+    
+            const q = query(tarefasCollection, where("data", "==", dataAlvo), where("concluido", "==", false));
+            const querySnapshot = await getDocs(q);
+    
+            querySnapshot.forEach(doc => {
+                const tarefa = doc.data();
+                client.sendMessage(message.from, `🔔 Lembrete: A tarefa "${tarefa.tarefa}" está agendada para amanhã!`);
+            });
+        },60 * 60 * 1000); // Executa a cada 1 hora
+    
 
 	// function avisoTarefa(id){
 	// 	// Faltando 1 dia para tarefa ser finalizada vai chamar essa função
@@ -208,7 +221,23 @@ client.on('message_create', async (message) => {
 	// }
 
 	// tarefaFinalizada()
-
+    
+    setInterval(async () => {
+        const agora = new Date();
+    
+        const q = query(tarefasCollection, where("concluido", "==", false));
+        const querySnapshot = await getDocs(q);
+    
+        querySnapshot.forEach(async doc => {
+            const tarefa = doc.data();
+            const dataTarefa = new Date(tarefa.data.split('/').reverse().join('-')); // Convertendo para Date
+    
+            if (dataTarefa < agora) { // Verifica se já passou
+                await deleteDoc(doc.ref);
+                console.log(`Tarefa "${tarefa.tarefa}" foi automaticamente excluída.`);
+            }
+        });
+    },); // Executa a cada 1 hora
 
     if (message.body === '!ping') {
         client.sendMessage(message.from, 'pong');
