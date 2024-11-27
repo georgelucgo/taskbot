@@ -187,7 +187,7 @@ client.on('message_create', async (message) => {
     
             const q = query(tarefasCollection, where("data", "==", dataAlvo), where("concluido", "==", false));
             const querySnapshot = await getDocs(q);
-    
+		  
             querySnapshot.forEach(doc => {
                 const tarefa = doc.data();
                 client.sendMessage(message.from, `🔔 Lembrete: A tarefa "${tarefa.tarefa}" está agendada para amanhã!`);
