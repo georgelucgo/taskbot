@@ -22,7 +22,7 @@ const tarefasCollection = collection(db, "tarefas");
 client.on('message_create', async (message) => {
 
 	// Método Cadastrar 
-    const regex = /^\/tarefas\s+"(.+?)"\s+(\d{2})\/(\d{2})\/(\d{4})$/;
+    const regex = /^\/tarefa\s+"(.+?)"\s+(\d{2})\/(\d{2})\/(\d{4})$/;
     const match = message.body.match(regex); // Verifica se bate com a mensagem
 
     if (match) {
@@ -36,7 +36,7 @@ client.on('message_create', async (message) => {
 		const hora = 23;
 		const minutos = 59;
         const data = new Date(ano, mes - 1, dia, hora, minutos); // No Javascript o mês começa em 0
-		
+	
 
 		//Criando id numérico
 		const q = query(tarefasCollection, orderBy("id", "desc"), limit(1)); // Busca maior id atual, apenas um único elemento
@@ -76,29 +76,56 @@ client.on('message_create', async (message) => {
 
 
 	// Método Listar 
-	async function listarTarefas(){
-		try{
-			const q = query(tarefasCollection, orderBy("id", "asc"), )
+	async function listarTarefas() {
+		try {
+			// Busca todas as tarefas, ordenadas pela data
+			const q = query(tarefasCollection, orderBy("data", "asc"));
 			const querySnapshot = await getDocs(q);
-			if(querySnapshot.empty){
+	
+			if (querySnapshot.empty) {
 				client.sendMessage(message.from, "Nenhuma tarefa encontrada.");
-				return
+				return;
 			}
-			var mensagem = "*Lista de Tarefas*\n"
-
-			querySnapshot.forEach((doc)=>{
+	
+			// Array para armazenar as tarefas
+			let tarefas = [];
+			querySnapshot.forEach((doc) => {
 				const tarefa = doc.data();
-				mensagem += `${tarefa.id}. ${tarefa.tarefa} - ${tarefa.data}\n`;
-			})
-
+				const dataTarefa = new Date(tarefa.data.split('/').reverse().join('-')); // Converte data para Date
+				tarefas.push({
+					idFirebase: doc.id, // ID do documento no Firestore
+					tarefa: tarefa.tarefa,
+					data: tarefa.data,
+					dataTimestamp: dataTarefa, // Adiciona para garantir ordenação
+				});
+			});
+	
+			// Ordena as tarefas por data (caso haja inconsistências)
+			tarefas.sort((a, b) => a.dataTimestamp - b.dataTimestamp);
+	
+			// Atualiza os IDs no Firestore com base na nova ordem
+			for (let i = 0; i < tarefas.length; i++) {
+				const novoId = i + 1; // Novo ID sequencial
+				const docRef = doc(tarefasCollection, tarefas[i].idFirebase); // Referência do documento no Firestore
+	
+				// Atualiza o campo `id` no Firestore
+				await updateDoc(docRef, { id: novoId });
+			}
+	
+			// Gera a mensagem para enviar ao usuário
+			let mensagem = "*Lista de Tarefas (IDs Atualizados)*\n";
+			tarefas.forEach((tarefa, index) => {
+				mensagem += `${index + 1}. ${tarefa.tarefa} - ${tarefa.data}\n`;
+			});
+	
+			// Envia a mensagem de confirmação
 			client.sendMessage(message.from, mensagem);
+		} catch (error) {
+			console.error("Erro ao listar e atualizar IDs:", error);
+			client.sendMessage(message.from, "Houve um erro ao listar e atualizar as tarefas. Tente novamente.");
 		}
-		catch(error){
-			console.error("Erro ao listar documentos:", error);
-			client.sendMessage(message.from, "Houve um erro ao listar as tarefas. Tente novamente.");
-		}
-		
 	}
+	
 
 	if (message.body === '/listar') {
 		listarTarefas();
@@ -177,70 +204,53 @@ client.on('message_create', async (message) => {
 		deletarTarefas(idTarefa);
 	}
 
-	// Fim do Método deletar
+	  //Fim do Método deletar
 
-        // Intervalo para verificar tarefas
-        setInterval(async () => {
-            const agora = new Date();
-            agora.setDate(agora.getDate() + 1); // Um dia à frente
-            const dataAlvo = agora.toLocaleDateString("pt-BR");
+        //  Intervalo para verificar tarefas
+        //   setInterval(async () => {
+        //       const agora = new Date();
+        //       agora.setDate(agora.getDate() + 1);  //Um dia à frente
+        //       const dataAlvo = agora.toLocaleDateString("pt-BR");
     
-            const q = query(tarefasCollection, where("data", "==", dataAlvo), where("concluido", "==", false));
-            const querySnapshot = await getDocs(q);
+        //       const q = query(tarefasCollection, where("data", "==", dataAlvo), where("concluido", "==", false));
+        //       const querySnapshot = await getDocs(q);
 		  
-            querySnapshot.forEach(doc => {
-                const tarefa = doc.data();
-                client.sendMessage(message.from, `🔔 Lembrete: A tarefa "${tarefa.tarefa}" está agendada para amanhã!`);
-            });
-        },60 * 60 * 1000); // Executa a cada 1 hora
+        //       querySnapshot.forEach(doc => {
+        //           const tarefa = doc.data();
+        //           client.sendMessage(message.from, `🔔 Lembrete: A tarefa "${tarefa.tarefa}" está agendada para amanhã!`);
+        //       });
+        //   },60 * 60 * 1000);  //Executa a cada 1 hora
     
-
-	// function avisoTarefa(id){
-	// 	// Faltando 1 dia para tarefa ser finalizada vai chamar essa função
-	// 	// Criar um meio de avisar
-	// 	client.sendMessage(message.from, `${tarefa} vai se encerrar daqui 1 dia!!`)
-	// }
-
-	// //Fora do função ela tem que ser chamada
-	// //Algo tipo assim
-
-	// if(dataFaltando === 1){  
-	// 	avisoTarefa(tarefa.id);
-	// }
-
-
-	// function tarefaFinalizada(){
-	// 	//Temos cadastrada a conclusão, basicamente vamos buscar e deletar
-	// 	//Algo tipo assim:
-
-	// 	//if(Date.now() == tarefa.data){
-	// 		//tarefas.concluido = true;
-	// 		client.sendMessage(message.from, `${tarefas.tarefa} encerrou o seu prazo!`)
-	// 	}
-
-	// }
-
-	// tarefaFinalizada()
+    //   setInterval(async () => {
+    //       const agora = new Date();
     
-    setInterval(async () => {
-        const agora = new Date();
+    //       const q = query(tarefasCollection, where("concluido", "==", false));
+    //       const querySnapshot = await getDocs(q);
     
-        const q = query(tarefasCollection, where("concluido", "==", false));
-        const querySnapshot = await getDocs(q);
+    //       querySnapshot.forEach(async doc => {
+    //           const tarefa = doc.data();
+    //           const dataTarefa = new Date(tarefa.data.split('/').reverse().join('-')); // Convertendo para Date
     
-        querySnapshot.forEach(async doc => {
-            const tarefa = doc.data();
-            const dataTarefa = new Date(tarefa.data.split('/').reverse().join('-')); // Convertendo para Date
-    
-            if (dataTarefa < agora) { // Verifica se já passou
-                await deleteDoc(doc.ref);
-                console.log(`Tarefa "${tarefa.tarefa}" foi automaticamente excluída.`);
-            }
-        });
-    },); // Executa a cada 1 hora
+    //           if (dataTarefa < agora) {  //Verifica se já passou
+    //               await deleteDoc(doc.ref);
+    //               console.log(`Tarefa "${tarefa.tarefa}" foi automaticamente excluída.`);
+    //           }
+    //       });
+    //   },24 * 60 * 60 * 1000);   //Executa a cada 1 hora
 
-    if (message.body === '!ping') {
-        client.sendMessage(message.from, 'pong');
+      if (message.body === '!ping') {
+          client.sendMessage(message.from, 'pong');
+      }
+	if (message.body === '/cinema') {
+		if (message.isGroupMsg) {
+			const chatId = message.from;
+		
+			console.log(`ID: ${chatId}`);
+		}
+	}
+	
+	 if (message.body === '/oi') {
+        client.sendMessage(message.from, "*Olá, eu sou o Tarefex!* 👋\nSou seu assistente pessoal para organização de tarefas. 🗂️\n\nAqui estão os comandos que você pode usar comigo:\n\n/listar-> Mostra todas as suas tarefas atuais. 📋\n\n/tarefas 'Nome da Tarefa' DD/MM/AAAA -> Adiciona uma nova tarefa com o nome e a data fornecidos.📝\n\n/editar 'Número da Tarefa' 'Novo Nome' DD/MM/AAAA -> Edita o nome e/ou a data de uma tarefa. ✏️\n\n/deletar 'Numero da tarefa' -> Remove uma tarefa da lista. ❌ \n\n✨ Vamos começar? Me diga como posso ajudar!");
     }
 });
 
