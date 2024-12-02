@@ -121,7 +121,7 @@ client.on('message_create', async (message) => {
     
 	}else if(message.body.startsWith('/tarefa')){
 
-		client.sendMessage(grupoPermitido, `Escreva corretamente: /tarefa "Nome da tarefa" Dia/Mês/Ano`)
+		client.sendMessage(grupoPermitido, `Houve um erro ao cadastrar a tarefa. Tente novamente: /tarefa "Nome da tarefa" Dia/Mês/Ano`)
 
 	}else if(message.body.startsWith('/')){
 
